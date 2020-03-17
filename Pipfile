@@ -6,7 +6,7 @@ name = "pypi"
 [dev-packages]
 pytest-watch = "*"
 jedi = "*"
-black = "*"
+black = "==19.10b0"
 
 [packages]
 click = "*"
@@ -16,9 +16,8 @@ structlog = "*"
 colorama = "*"
 "discord.py" = {extras = ["voice"]}
 libtmux = "*"
-gtts-token = "*"
 tenacity = "*"
 gtts = "*"
 
 [requires]
-python_version = "3.6"
+python_version = "3.7"

@@ -17,7 +17,7 @@ class Server:
     def __init__(self, *, ip, port, channel_id, bot_token):
         self.ip = ip
         self.port = int(port)
-        self.channel_id = channel_id
+        self.channel_id = int(channel_id)
         self.bot_token = bot_token
         self.logger = structlog.getLogger(__name__)
 
@@ -41,12 +41,12 @@ class Server:
             byte_stream = BytesIO()
             try:
                 self.logger.info("Downloading GTTS audio.", message=message)
-                text_to_speech = gTTS(message, "en-au")
+                text_to_speech = gTTS(message, lang="en-au", lang_check=True)
                 text_to_speech.write_to_fp(byte_stream)
             except AssertionError:
                 message = "Recieved incomplete message."
                 self.logger.info("Downloading GTTS audio.", message=message)
-                text_to_speech = gTTS(message, "en-au")
+                text_to_speech = gTTS(message, lang="en-au", lang_check=True)
                 text_to_speech.write_to_fp(byte_stream)
 
             byte_stream.seek(0)
@@ -70,28 +70,26 @@ class Server:
 
     async def on_ready(self):
         await self.client.wait_until_ready()
-        channel = self.client.get_channel(self.channel_id)
-        server = channel.server
-        voice = await self.client.join_voice_channel(channel)
+        channel: discord.VoiceChannel = self.client.get_channel(self.channel_id)
+        voice = await channel.connect()
 
         while True:
-
-            if self.client.is_voice_connected(server) == True:
+            if voice.is_connected():
                 byte_stream = await self.audio_queue.get()
                 with TemporaryFile() as file:
                     file.write(byte_stream.read())
                     file.seek(0)
 
-                    player = voice.create_ffmpeg_player(file, pipe=True)
-                    player.start()
+                    audio = discord.FFmpegOpusAudio(file, pipe=True)
+                    voice.play(audio)
 
-                    while player.is_playing():
+                    while voice.is_playing():
                         await asyncio.sleep(0.01)
                     else:
                         byte_stream.close()
             else:
                 self.logger.info("Reconnecting to voice channel.")
-                voice = await self.client.join_voice_channel(channel)
+                voice = await channel.connect()
 
     def run(self):
         self.loop.create_task(self.on_ready())
